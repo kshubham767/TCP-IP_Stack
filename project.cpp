@@ -2,6 +2,7 @@
 #include <string>
 #include <bitset>
 #include <sstream>
+#include <algorithm>
 #include <vector>
 #include <random>
 #include <ctime>
@@ -15,7 +16,7 @@ public:
     int port;
     string data;
     int seq_no;
-    string subnet;
+    int subnet;
     string gateway;
     int dynamic;
     string message;
@@ -39,7 +40,7 @@ public:
     EndDevice(string i, int p, string d, int s)
         : ip(i), port(p), data(d), seq_no(s) {
             mac = Generate_mac_address();
-            subnet = "";
+            subnet = 0;
             gateway = "";
             dynamic = 0;
             message = "";
@@ -122,8 +123,8 @@ public:
         return 1;
     }
 
-     vector<int> maclist1 = {0, 0, 0, 0, 0};
-     vector<int> maclist2 = {0, 0, 0, 0, 0};
+     vector<string> maclist1 = {0, 0, 0, 0, 0};
+     vector<string> maclist2 = {0, 0, 0, 0, 0};
 };
 
 Switch Switch1;
@@ -131,7 +132,7 @@ Switch Switch2;
 
 class Router {
 public:
-    static vector<string> R_table;
+    vector<vector<string>> R_table;
     vector<string> interface1;
     vector<string> interface2;
     vector<string> interface3;
@@ -155,12 +156,24 @@ public:
         max_i3 = 1;
         flag = 0;
     }
-    void user_executive_mode() {
+    void user_executive_mode();
+    void privilege_mode();
+    void global_conf();
+    void Interface1();
+    void Interface2();
+    void Interface3();
+};
+
+Router Router1;
+Router Router2;
+Router Router3;
+
+void Router::user_executive_mode() {
         cout << "User Executive mode" << endl;
         string user;
         cin >> user;
         if (user == "en" || user == "enable") {
-            privilegde_mode();
+            privilege_mode();
         }
 
         cin >> user;
@@ -169,7 +182,7 @@ public:
         }
     }
 
-    void privilegde_mode() {
+void Router::privilege_mode() {
         cout << "Priviledge mode" << endl;
         while (true) {
             string user;
@@ -182,14 +195,13 @@ public:
             } else if (user == "write memory") {
                 cout << "Settings Saved" << endl;
             } else if (user == "showip route") {
-                R_table;
+                Router1.R_table;
             } else {
                 cout << "Invalid Command" << endl;
             }
         }
     }
-
-    void global_conf() {
+ void Router :: global_conf() {
         while (true) {
             cout << "Global Configuration Mode" << endl;
             string user;
@@ -204,11 +216,11 @@ public:
             } else if (user == "int 3") {
                 Interface3();
             } else if (user == "iproute 0.0.0.0 0.0.0.0 ipaddress main router") {
-                R_table;
+                Router1.R_table;
             } else if (user == "iproute 10.0.0.0 255.255.255.0 20.0.0.3") {
-                //routing(Router1);
+                routing(Router1);
             } else if (user == "router rip") {
-                //RIP();
+                RIP();
                 cout << "Enter IP of Directly connected neighbours" << endl;
                 string user1;
                 cin >> user1;
@@ -222,7 +234,7 @@ public:
         }
     }
 
-    void Interface1() {
+void Router::Interface1() {
         while (true) {
             string user;
             cin >> user;
@@ -246,7 +258,7 @@ public:
         }
     }
 
-    void Interface2() {
+void Router::Interface2() {
         while (true) {
             string user;
             cin >> user;
@@ -271,7 +283,7 @@ public:
         }
     }
 
-    void Interface3() {
+void Router ::Interface3() {
         while (true) {
             string user;
             cin >> user;
@@ -294,16 +306,11 @@ public:
                 cout << "Invalid Command" << endl;
             }
         }
-    }
-
-};
-
-Router Router1;
-Router Router2;
-Router Router3;
+ }
 
 
 /*-------------------------------------------------SERVER----------------------------------------------------*/
+
 class Server {
 public:
     string name;
@@ -327,7 +334,7 @@ Server SMTP("smtp", 25, 3, "30.0.0.6");
 
 vector<Server> s_list = {HTTP, SSH, SMTP};
 
-void messtrf(string message, EndDevice endD, Server& server) {
+void messtrf(string message, EndDevice endD, Server server) {
     server.message = message;
 }
 
@@ -410,7 +417,285 @@ string get_nid(string ip_address, int subnet) {
     return s;
 }
 
+
+int subnettingBits(string& subnetMask) {
+    string binaryMask;
+    for (char c : subnetMask) {
+        if (c == '.')
+            continue;
+        int octet = c - '0';
+        binaryMask += bitset<8>(octet).to_string();
+    }
+    int subnettingBitsCount = 0;
+    for (char bit : binaryMask) {
+        if (bit == '1')
+            subnettingBitsCount++;
+        else
+            break;
+    }
+    return subnettingBitsCount;
+}
+
 /*---------------------------------------------PING--------------------------------------------------------*/
+
+void ping(int src, int dest) {
+    if (Router1.flag == 0 /*&& num4 == 7 will be declare later*/) {
+        cout << "Timeout Occurred" << endl;
+    } else if (get_nid(endDevices[src].ip, endDevices[src].subnet) == get_nid(endDevices[dest].ip, endDevices[src].subnet)) {
+        cout << "Searching the MAC address of destination in ARP Cache..." << endl;
+        cout << "Found the IP address in ARP Cache" << endl;
+        for (int i = 0; i < 4; i++) {
+            cout << "Reply from: " << endDevices[dest].ip << " bytes=32 time<1ms TTL=128" << endl;
+        }
+    } else {
+        cout << "Searching the MAC address of destination in ARP Cache..." << endl;
+        cout << "Couldn't find the MAC address of destination in the ARP Cache" << endl;
+        cout << "Default Gateway is " << endDevices[src].gateway << endl;
+        for (int i = 0; i < Router1.R_table.size(); i++) {
+            if (get_nid(endDevices[dest].ip, endDevices[dest].subnet) == get_nid(Router1.R_table[i][0], subnettingBits(Router1.R_table[i][1]))) {
+                cout << "Searching the MAC address of destination in ARP Cache..." << endl;
+                cout << "Found the IP address in ARP Cache" << endl;
+                for (int i = 0; i < 4; i++) {
+                    cout << "Reply from: " << endDevices[dest].ip << " bytes=32 time<1ms TTL=128" << endl;
+                }
+                return;
+            }
+        }
+        cout << "New Timeout occurred" << endl;
+    }
+}
+
+/*------------------------------------Routing----------------------------------------------------------------------*/
+
+
+void routing(Router router) {
+        vector<string> entry1 = { get_nid(endDevices[1].ip, endDevices[1].subnet),
+                                  to_string(endDevices[1].subnet),
+                                  router.interface1[0] };
+        router.R_table.push_back(entry1);
+
+        vector<string> entry2 = { get_nid(endDevices[2].ip, endDevices[2].subnet),
+                                  to_string(endDevices[2].subnet),
+                                  router.interface2[0] };
+        router.R_table.push_back(entry2);
+    }
+
+/*----------------------------------------------RIP--------------------------------------------------------*/
+
+void RIP() {
+    vector<vector<string>> temp1;
+    vector<vector<string>> temp2;
+    vector<vector<string>> temp3;
+    temp1 = Router1.R_table;
+    Router1.flag = 1;
+    temp2 = Router2.R_table;
+    temp3 = Router3.R_table;
+
+    for (int i = 0; i < 5; i++) {
+        if (stoi(Router1.R_table[i][4]) > 1 + stoi(temp2[i][4])) {
+            Router1.R_table[i][4] = to_string(1 + stoi(temp2[i][4]));
+            Router1.R_table[i][3] = "40.0.0.2";
+        }
+
+        if (stoi(Router1.R_table[i][4]) > 1 + stoi(temp3[i][4])) {
+            Router1.R_table[i][4] = to_string(1 + stoi(temp3[i][4]));
+            Router1.R_table[i][3] = "30.0.0.2";
+        }
+
+        if (stoi(Router2.R_table[i][4]) > 1 + stoi(temp1[i][4])) {
+            Router2.R_table[i][4] = to_string(1 + stoi(temp1[i][4]));
+            Router2.R_table[i][3] = "40.0.0.1";
+        }
+
+        if (stoi(Router2.R_table[i][4]) > 1 + stoi(temp3[i][4])) {
+            Router2.R_table[i][4] = to_string(1 + stoi(temp3[i][4]));
+            Router2.R_table[i][3] = "50.0.0.1";
+        }
+
+        if (stoi(Router3.R_table[i][4]) > 1 + stoi(temp1[i][4])) {
+            Router3.R_table[i][4] = to_string(1 + stoi(temp1[i][4]));
+            Router3.R_table[i][3] = "30.0.0.1";
+        }
+
+        if (stoi(Router3.R_table[i][4]) > 1 + stoi(temp2[i][4])) {
+            Router3.R_table[i][4] = to_string(1 + stoi(temp2[i][4]));
+            Router3.R_table[i][3] = "50.0.0.2";
+        }
+    }
+
+    for (const auto& entry : Router1.R_table) {
+        for (const auto& value : entry) {
+            cout << value << " ";
+        }
+        cout << endl;
+    }
+}
+
+/*----------------------------------------------DHCP--------------------------------------------------------*/
+
+
+void DHCP(int enddevice) {
+    string generatedAddress;
+    if (enddevice == 1 || enddevice == 2 || enddevice == 3) {
+        random_device rd;
+        mt19937 gen(rd());
+        uniform_int_distribution<int> dis(2, 254);
+        int ran = dis(gen);
+        string r = to_string(ran);
+        string p = "";
+        int dots = 0;
+        for (char i : Router1.interface1[0]) {
+            if (i == '.') {
+                dots++;
+            }
+            if (dots >= 3) {
+                p += i;
+                break;
+            } else {
+                p += i;
+            }
+        }
+        p += r;
+        generatedAddress = p;
+    } else {
+        random_device rd;
+        mt19937 gen(rd());
+        uniform_int_distribution<int> dis(2, 254);
+        int ran = dis(gen);
+        string r = to_string(ran);
+        string p = "";
+        int dots = 0;
+        for (char i : Router1.interface2[0]) {
+            if (i == '.') {
+                dots++;
+            }
+            if (dots >= 3) {
+                p += i;
+                break;
+            } else {
+                p += i;
+            }
+        }
+        p += r;
+        generatedAddress = p;
+    }
+
+    cout << "The generated address is " << generatedAddress << endl;
+}
+
+/*-----------------------------------------------------HTTP------------------------------------------*/
+
+
+/*-----------------------------FLOW CONTROL PROTOCOL: STOP AND WAIT ARQ------------------------------------*/
+
+void stop_and_wait_arq_HUb(int a, int b, vector<string>& c) {
+    int sender = 0;
+    int receiver = 0;
+    int s = 0;
+    int ack = 0;
+    for (int i = 0; i < c.size(); i++) {
+        if (i % 2 == 0) {
+            s = 0;
+            ack = 1;
+        } else {
+            s = 1;
+            ack = 0;
+        }
+
+        int c1 = count(Switch1.maclist1.begin(), Switch1.maclist1.end(), endDevices[b].mac);
+        int c2 = count(Switch1.maclist2.begin(), Switch1.maclist2.end(), endDevices[b].mac);
+        if (c1 == 0 && c2 == 0) {
+            cout << "Mac Address of End Device " << b << " not found in the MAC table\n";
+            cout << "Switch will broadcast the message\n";
+
+            if (i != 0 && i % 4 == 0) {
+                cout << "Time out occurred, Sending the " << i << "th frame again. Sequence number: " << s << "\n";
+            }
+            cout << "Sending First packet -----" << c[0] << "-----\n";
+            for (int j = 1; j <= 10; j++) {
+                if (j != a) {
+                    endDevices[j].data = c[i];
+                    cout << "Message sent to End Device " << j << "\n";
+                }
+                if (j == b) {
+                    cout << "Ack received by End Device " << b << " ACK NO: " << ack << "\n";
+                }
+            }
+            cout << "\n";
+            if (a < 6) {
+                Switch1.maclist1[a - 1] = endDevices[a].mac;
+            } else {
+                Switch1.maclist2[a - 6] = endDevices[a].mac;
+            }
+            if (b < 6) {
+                Switch1.maclist1[b - 1] = endDevices[b].mac;
+            } else {
+                Switch1.maclist2[b - 6] = endDevices[b].mac;
+            }
+        } else {
+            if (a < 6 && b < 6) {
+                cout << "Mac Address found, Both Devices in Hub 1\n";
+                cout << "Sending packet -----" << c[i] << "-----\n";
+                if (i != 0 && i % 4 == 0) {
+                    cout << "Time out occurred, Sending the " << i << "th frame again. Sequence number: " << s << "\n";
+                }
+                for (int j = 1; j <= 5; j++) {
+                    if (j != a) {
+                        endDevices[j].data = c[i];
+                        cout << "Message sent to End Device " << j << "\n";
+                    }
+                    if (j == b) {
+                        cout << "Ack received by End Device " << b << " ACK NO: " << ack << "\n";
+                    }
+                }
+                cout << "\n";
+            } else if (a > 6 && b > 6) {
+                cout << "Mac Address found, Both Devices in Hub 2\n";
+                cout << "Sending packet -----" << c[i] << "-----\n";
+                if (i != 0 && i % 4 == 0) {
+                    cout << "Time out occurred, Sending the " << i << "th frame again. Sequence number: " << s << "\n";
+                }
+                for (int j = 6; j <= 10; j++) {
+                    if (j != a) {
+                        endDevices[j].data = c[i];
+                        cout << "Message sent to End Device " << j << "\n";
+                    }
+                    if (j == b) {
+                        cout << "Ack received by End Device " << b << " ACK NO: " << ack << "\n";
+                    }
+                }
+                cout << "\n";
+            } else {
+                cout << "Mac Address of End Device " << b << " found in the MAC table\n";
+                cout << "Sending packet -----" << c[i] << "-----\n";
+                cout << "Sending to other port\n";
+                if (i != 0 && i % 4 == 0) {
+                    cout << "Time out occurred, Sending the " << i << "th frame again. Sequence number: " << s << "\n";
+                }
+                for (int j = 1; j <= 10; j++) {
+                    if (j != a) {
+                        endDevices[j].data = c[i];
+                        cout << "Message sent to End Device " << j << "\n";
+                    }
+                    if (j == b) {
+                        cout << "Ack received by End Device " << b << " ACK NO: " << ack << "\n";
+                    }
+                }
+                cout << "\n";
+                if (a < 6) {
+                    Switch1.maclist1[a - 1] = endDevices[a].mac;
+                } else {
+                    Switch1.maclist2[a - 6] = endDevices[a].mac;
+                }
+                if (b < 6) {
+                    Switch1.maclist1[b - 1] = endDevices[b].mac;
+                } else {
+                    Switch1.maclist2[b - 6] = endDevices[b].mac;
+                }
+            }
+        }
+    }
+}
 
 
 int main() {
