@@ -78,17 +78,12 @@ bool End_Device_Vacant() {
 
 class Hub {
 public:
-    int port1;
-    int port2;
-    int port3;
-    int port4;
-    int port5;
-    int port6;
+    vector<int> ports;
 
-    Hub() : port1(0), port2(0), port3(0), port4(0), port5(0), port6(0) {}
+    Hub() : ports(6,0) {}
 
     int Hub_vacant() {
-         vector<int> plist = {port1, port2, port3, port4, port5, port6};
+         vector<int> plist = ports;
         for (int i = 0; i < 6; i++) {
             if (plist[i] == 0) {
                 return 0;
@@ -123,8 +118,8 @@ public:
         return 1;
     }
 
-     vector<string> maclist1 = {0, 0, 0, 0, 0};
-     vector<string> maclist2 = {0, 0, 0, 0, 0};
+     vector<string> maclist1 = {"0", "0", "0", "0", "0"};
+     vector<string> maclist2 = {"0", "0", "0", "0", "0"};
 };
 
 Switch Switch1;
@@ -218,9 +213,9 @@ void Router::privilege_mode() {
             } else if (user == "iproute 0.0.0.0 0.0.0.0 ipaddress main router") {
                 Router1.R_table;
             } else if (user == "iproute 10.0.0.0 255.255.255.0 20.0.0.3") {
-                routing(Router1);
+                //routing(Router1);
             } else if (user == "router rip") {
-                RIP();
+                //RIP();
                 cout << "Enter IP of Directly connected neighbours" << endl;
                 string user1;
                 cin >> user1;
@@ -697,11 +692,472 @@ void stop_and_wait_arq_HUb(int a, int b, vector<string>& c) {
     }
 }
 
+void stop_and_wait_arq(int a, int b, vector<string>& c) {
+    int sender = 0;
+    int receiver = 0;
+    int s = 0;
+    int ack = 0;
+    for (int i = 0; i < c.size(); i++) {
+        if (i % 2 == 0) {
+            s = 0;
+            ack = 1;
+        } else {
+            s = 1;
+            ack = 0;
+        }
+        int c1 = count(Switch1.maclist1.begin(), Switch1.maclist1.end(), endDevices[b].mac);
+        if (c1 == 0) {
+            cout << "Mac Address of End Device " << b << " not found in the MAC table" << endl;
+            cout << "Switch will broadcast the message" << endl;
+            cout << "Sending  packet ----- " << c[i] << " -----" << endl;
+            if (i != 0 && i % 4 == 0) {
+                cout << "time out occurred, Sending the " << i << "th frame again. Sequence number : " << s << endl;
+            }
+            for (int j = 1; j <= 5; j++) {
+                if (j != a) {
+                    endDevices[j].data = c[i];
+                    cout << "Message sent to End Device " << j << endl;
+                }
+                if (j == b) {
+                    cout << "Ack received by End Device " << b << " ACK NO : " << ack << endl;
+                }
+            }
+            cout << endl;
+            Switch1.maclist1[a - 1] = endDevices[a].mac;
+            Switch1.maclist1[b - 1] = endDevices[b].mac;
+        } else {
+            cout << "Mac Address of End Device " << b << " found in the MAC table" << endl;
+            cout << "Sending  packet ----- " << c[i] << " -----" << endl;
+            if (i != 0 && i % 4 == 0) {
+                cout << "time out occurred, Sending the " << i << "th frame again. Sequence number : " << s << endl;
+            }
+            cout << "Message sent to End Device " << b << endl;
+            cout << "ACK received from End Device " << b << endl;
+            cout << endl;
+            Switch1.maclist1[a - 1] = endDevices[a].mac;
+            Switch1.maclist1[b - 1] = endDevices[b].mac;
+        }
+    }
+}
+
+/*-----------------------------FLOW CONTROL PROTOCOL: SELECTIVE REPEAT------------------------------------*/
+
+void Selective_Repeat_Hub(int a, int b, vector<int>& c) {
+    cout << "Enter the reserved bit size for Seq no" << endl;
+    int m;
+    cin >> m;
+
+    int sf = 0;
+    int sn = 0;
+    int x = c.size();
+    int Window_Size = pow(2, m - 1);
+    int Seq_no = pow(2, m);
+    vector<int> array(x, 0);
+    vector<int> visited(x, 0);
+
+    while (x != 0) {
+        int marker = 0;
+
+        while (sn < sf + Window_Size && sn < c.size()) {
+            if (array[sn] == 0) {
+                if (sn % 3 == 0 && visited[sn] == 0) {
+                    cout << sn << "-th packet lost, Sending next packet" << endl;
+                    visited[sn] = 1;
+                    if (marker == 0) {
+                        sf = sn;
+                        marker = marker + 1;
+                    }
+                } else {
+                    array[sn] = 1;
+
+                    int c1 = count(Switch1.maclist1.begin(), Switch1.maclist1.end(), endDevices[b].mac);
+                    int c2 = count(Switch1.maclist2.begin(), Switch1.maclist2.end(), endDevices[b].mac);
+
+                    if (c1 == 0 && c2 == 0) {
+                        cout << "Mac Address of End Device " << b << " not found in the MAC table" << endl;
+                        cout << "Switch will broadcast the message" << endl;
+                        cout << "Sending packet -----" << c[sn] << "-----" << endl;
+
+                        for (int j = 1; j < 11; j++) {
+                            if (j != a) {
+                                endDevices[j].data = c[sn];
+                                cout << "Message sent to End Device " << j << endl;
+                            }
+                            if (j == b) {
+                                cout << "Ack received by End Device " << b << " ACK NO :" << sn % Seq_no << endl;
+                            }
+                        }
+                        cout << endl;
+
+                        if (a < 6) {
+                            Switch1.maclist1[a - 1] = endDevices[a].mac;
+                        } else {
+                            Switch1.maclist2[a - 6] = endDevices[a].mac;
+                        }
+
+                        if (b < 6) {
+                            Switch1.maclist1[b - 1] = endDevices[b].mac;
+                        } else {
+                            Switch1.maclist2[b - 6] = endDevices[b].mac;
+                        }
+                    } else {
+                        if (a < 6 && b < 6) {
+                            cout << "Mac Address found, Both Devices in Hub 1" << endl;
+                            cout << "Sending packet -----" << c[sn] << "-----" << endl;
+
+                            for (int j = 1; j < 6; j++) {
+                                if (j != a) {
+                                    endDevices[j].data = c[sn];
+                                    cout << "Message sent to End Device " << j << endl;
+                                }
+                                if (j == b) {
+                                    cout << "Ack received by End Device " << b << " ACK NO :" << sn % Seq_no << endl;
+                                }
+                            }
+                            cout << endl;
+                        } else if (a > 6 && b > 6) {
+                            cout << "Mac Address found, Both Devices in Hub 2" << endl;
+                            cout << "Sending packet -----" << c[sn] << "-----" << endl;
+
+                            for (int j = 6; j < 11; j++) {
+                                if (j != a) {
+                                    endDevices[j].data = c[sn];
+                                    cout << "Message sent to End Device " << j << endl;
+                                }
+                                if (j == b) {
+                                    cout << "Ack received by End Device " << b << " ACK NO :" << sn % Seq_no << endl;
+                                }
+                            }
+                            cout << endl;
+                        } else {
+                            cout << "Mac Address of End Device " << b << " found in the MAC table" << endl;
+
+                            if (sn != 0 && sn % 4 == 0) {
+                                cout << "time out occurred, Sending the " << sn << "th frame again." << endl;
+                                cout << "Sequence number: " << sn % Seq_no << endl;
+                            }
+                            cout << "Sending packet -----" << c[sn] << "-----" << endl;
+
+                            for (int j = 1; j < 11; j++) {
+                                if (j != a) {
+                                    endDevices[j].data = c[sn];
+                                    cout << "Message sent to End Device " << j << endl;
+                                }
+                                if (j == b) {
+                                    cout << "Ack received by End Device " << b << " ACK NO :" << sn % Seq_no << endl;
+                                }
+                            }
+                            cout << endl;
+
+                            if (a > 5) {
+                                Switch1.maclist1[a - 6] = endDevices[a].mac;
+                            } else {
+                                Switch1.maclist1[a - 1] = endDevices[a].mac;
+                            }
+
+                            if (b > 5) {
+                                Switch1.maclist2[b - 6] = endDevices[b].mac;
+                            } else {
+                                Switch1.maclist2[b - 1] = endDevices[b].mac;
+                            }
+                        }
+                    }
+
+                    x = x - 1;
+
+                    if (sf == sn) {
+                        for (int i = sf; i < c.size(); i++) {
+                            if (array[i] == 0) {
+                                sf = i;
+                                sn = sf - 1;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+            }
+            sn = sn + 1;
+        }
+
+        if (sn < c.size()) {
+            cout << "Restart the timer, sending the outstanding packets again" << endl;
+        }
+        sn = sf;
+    }
+}
+
+void Selective_Repeat(int a, int b, vector<int>& c) {
+    cout << "Enter the reserved bit size for Seq no" << endl;
+    int m;
+    cin >> m;
+
+    int sf = 0;
+    int sn = 0;
+    int x = c.size();
+    int Window_Size = pow(2, m - 1);
+    int Seq_no = pow(2, m);
+    vector<int> array(x, 0);
+    vector<int> visited(x, 0);
+
+    while (x != 0) {
+        int marker = 0;
+
+        while (sn < sf + Window_Size && sn < c.size()) {
+            if (array[sn] == 0) {
+                if (sn % 2 == 0 && visited[sn] == 0) {
+                    cout << sn << "th packet lost, Sending next packet" << endl;
+                    visited[sn] = 1;
+                    if (marker == 0) {
+                        sf = sn;
+                        marker = marker + 1;
+                    }
+                } else {
+                    array[sn] = 1;
+
+                    int c1 = count(Switch1.maclist1.begin(), Switch1.maclist1.end(), endDevices[b].mac);
+
+                    if (c1 == 0) {
+                        cout << "Mac Address of End Device " << b << " not found in the MAC table" << endl;
+                        cout << "Switch will Broadcast the message" << endl;
+                        cout << "Sending packet -----" << c[sn] << "-----" << endl;
+
+                        for (int j = 1; j < 6; j++) {
+                            if (j != a) {
+                                endDevices[j].data = c[sn];
+                                cout << "Message sent to End Device " << j << endl;
+                            }
+                            if (j == b) {
+                                cout << "Ack received by End Device " << b << " ACK NO :" << sn % Seq_no << endl;
+                            }
+                        }
+                        cout << endl;
+
+                        Switch1.maclist1[a - 1] = endDevices[a].mac;
+                        Switch1.maclist1[b - 1] = endDevices[b].mac;
+                    } else {
+                        cout << "Mac Address of End Device " << b << " found in the MAC table" << endl;
+                        cout << "Sending packet -----" << c[sn] << "-----" << endl;
+
+                        if (sn != 0 && sn % 4 == 0) {
+                            cout << "time out occurred, Sending the " << sn << "th frame again." << endl;
+                        }
+                        cout << "Message sent to End Device " << b << endl;
+                        cout << "ACK received from End Device " << b << endl;
+                        cout << endl;
+
+                        Switch1.maclist1[a - 1] = endDevices[a].mac;
+                        Switch1.maclist1[b - 1] = endDevices[b].mac;
+                    }
+
+                    x = x - 1;
+
+                    if (sf == sn) {
+                        for (int i = sf; i < c.size(); i++) {
+                            if (array[i] == 0) {
+                                sf = i;
+                                sn = sf - 1;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+            }
+            sn = sn + 1;
+        }
+
+        if (sn < c.size()) {
+            cout << "Restart the timer, sending the outstanding packets again" << endl;
+        }
+        sn = sf;
+    }
+}
+
+/*----------------------------------------------------ACCESS CONTROL-----------------------------------------*/
+
+
+vector<int> end_Devices = {e1.seq_no, e2.seq_no, e3.seq_no, e4.seq_no, e5.seq_no, e6.seq_no, e7.seq_no, e8.seq_no, e9.seq_no, e10.seq_no};
+
+void token_passing(int token, int num1) {
+    int t = token;
+    int s = num1;
+
+    if (t == s) {
+        cout << "Sender has the access already!" << endl;
+    } else if (t < s) {
+        cout << "End Device " << t << " Has access" << endl;
+        cout << "------Passing the Token" << endl;
+        for (int i : end_Devices) {
+            cout << "End Device " << i + t << " Has access now" << endl;
+
+            if (s == i + t) {
+                cout << "----------------------------Access granted-----------------------------------" << endl;
+                break;
+            }
+            if (i != s) {
+                cout << "------Passing the Token" << endl;
+            }
+        }
+    } else {
+        cout << "End Device " << t << " Has access" << endl;
+        cout << "------Passing the Token" << endl;
+        for (int i : end_Devices) {
+            end_Devices[i] = t;
+            cout << "End Device " << t - i << " Has access now" << endl;
+
+            if (s == t - i) {
+                cout << "----------------------------Access granted-----------------------------------" << endl;
+                break;
+            }
+            if (i != s) {
+                cout << "------Passing the Token" << endl;
+            }
+        }
+    }
+}
+
+
+void collision_broadcast(int num4) {
+    if (1 == num4 || 2 == num4) {
+        cout << "Collision Domain: 1" << endl;
+        cout << "Broadcast Domain: 1" << endl;
+    } else if (3 == num4 || 4 == num4) {
+        cout << "Collision Domain: 2" << endl;
+        cout << "Broadcast Domain: 1" << endl;
+    } else if (5 == num4) {
+        cout << "Collision Domain: 5" << endl;
+        cout << "Broadcast Domain: 1" << endl;
+    } else if (6 == num4) {
+        cout << "Collision Domain: 5" << endl;
+        cout << "Broadcast Domain: 1" << endl;
+    } else if (7 == num4) {
+        cout << "Collision Domain: 6" << endl;
+        cout << "Broadcast Domain: 1" << endl;
+    }
+}
+
+/*-------------------------------------------------MENU---------------------------------------------------------*/
+
+
+void establishDedicatedLink(EndDevice& e1, EndDevice& e2) {
+    cout << "Enter Sender Device no: ";
+    int num1;
+    cin >> num1;
+    cout << "Enter Receiver Device no: ";
+    int num2;
+    cin >> num2;
+
+    cout << "You have selected these two End Devices: " << num1 << " and " << num2 << endl;
+    if (e1.port == e2.port) {
+        cout << "Enter the message to be transmitted: ";
+        string message;
+        cin.ignore();
+        getline(cin, message);
+        cout << "Message: " << message << endl;
+
+        e1.data = message;
+        cout << "Connection made between two End devices" << endl;
+        e1.port = 1;
+        e2.port = 2;
+        e2.data = e1.data;
+        cout << "Message sent successfully: " << message << endl;
+
+        if (e2.data == e1.data) {
+            cout << "                                                     ----ACK RECEIVED FROM END DEVICE " << num2 << "---" << endl;
+        } else {
+            cout << "---ACK LOST---" << endl;
+        }
+    } else {
+        cout << "No connection possible, already occupied" << endl;
+    }
+}
+
+void establishHubTopology(EndDevice& e1, Hub & Hub1, EndDevice& e2, EndDevice& e3, EndDevice& e4, EndDevice& e5) 
+{
+    cout<<"Device No. should be between 1 and 5"<<endl;
+    cout << "Enter Sender Device number: ";
+    int senderDevice;
+    cin >> senderDevice;
+    cout << "Enter Receiver Device number: ";
+    int receiverDevice;
+    cin >> receiverDevice;
+    if((senderDevice>=1&&senderDevice<=5)&&(receiverDevice >= 1 && receiverDevice <= 5)&&(senderDevice!=receiverDevice)){
+    cout << "You have selected these two End Devices within the same HUB: " << senderDevice << " and " << receiverDevice << endl;
+
+    if(End_Device_Vacant()==0&&Hub1.Hub_vacant()==0) {
+        endDevices[senderDevice].port = 1;
+        Hub1.ports[0]=1;
+        cout << "Connection made between Sender-End devices and HUB" << endl;
+        for(int i=1;i<4;i++)
+        {
+            if(Hub1.Hub_vacant()==0)
+            {
+                Hub1.ports[i]=i+1;
+            }
+            else
+            {
+                cout<<"No Port vacant in HUB"<<endl;
+                break;
+            }
+        }
+        cout << "Connection made between HUB and other End devices" << endl;
+        endDevices[receiverDevice].port=5;
+        Hub1.ports[4]=5;
+            cout << "Connection made between HUB and Receiver-End device" << endl;
+            cout << "Enter the message: ";
+            string message;
+            cin.ignore();
+            getline(cin, message);
+            cout << "Message: " << message << endl;
+
+            // Broadcast the message to all end devices
+            for (int i = 0; i < 5; i++) {
+                if (i + 1 != senderDevice) {
+                    endDevices[i].data = message;
+                    cout << "Message sent from End Device " << senderDevice << " to End Device " << i + 1 << " successfully." << endl;
+                }
+            }
+
+            // Receiver acknowledges the message
+            if(endDevices[receiverDevice - 1].data==message)
+               cout << "Acknowledgement (ACK) received from End Device " << receiverDevice << endl;
+            else
+                cout<<"Ack lost, no connection"<<endl;
+ 
+    }
+    else {
+        cout << "No vacant port available in the HUB." << endl;
+    }
+    }
+    else
+    {
+        cout<<"Enter the correct Device No."<<endl;
+    } 
+    
+}
+
 
 int main() {
-    e1.display();
-    cout<<Router1.max_conf;
-    cout<<get_nid("192.168.0.10",25);
+    cout << "Following Simulations can be carried out. Enter the respective number of the simulation:" << endl;
+    cout << "1. Dedicated Link" << endl;
+    cout << "2. Simulation through Hub (Star Topology)" << endl;
+    cout << "3. Simulation through Switch (Address Learning)" << endl;
+    cout << "4. Complete Simulation - Implementing Access and Flow Control Protocols" << endl;
+    cout << "5. Switch and 5 End Devices" << endl;
+    int num;
+    cin >> num;
+    switch (num) {
+        case 1:
+            establishDedicatedLink(e1, e2);
+            break;
+        case 2:
+            establishHubTopology(e1, Hub1, e2, e3, e4, e5);
+            break;
+        default:
+            cout << "Invalid simulation number" << endl;
+            break;
+    }
     return 0;
 }
 
