@@ -9,6 +9,8 @@
 
 using namespace std;
 
+int case_no = -1;
+
 class EndDevice {
 public:
     string ip;
@@ -83,7 +85,7 @@ public:
     Hub() : ports(6,0) {}
 
     int Hub_vacant() {
-         vector<int> plist = ports;
+        vector<int> plist = ports;
         for (int i = 0; i < 6; i++) {
             if (plist[i] == 0) {
                 return 0;
@@ -164,33 +166,34 @@ Router Router2;
 Router Router3;
 
 void Router::user_executive_mode() {
-        cout << "User Executive mode" << endl;
-        string user;
-        cin >> user;
-        if (user == "en" || user == "enable") {
-            privilege_mode();
-        }
-
-        cin >> user;
-        if (user == "ex") {
-            return;
+        while (true)
+        {
+            cout << "User Executive mode" << endl;
+            string user;
+            cin >> user;
+            if (user == "en" || user == "enable") {
+                privilege_mode();
+            }
+            else if (user == "ex") {
+                return;
+            }
         }
     }
 
 void Router::privilege_mode() {
-        cout << "Priviledge mode" << endl;
         while (true) {
+            cout << "Priviledge mode" << endl;
             string user;
             cin >> user;
             if (user == "ex" || user == "exit") {
-                cout << "User Executive Mode" << endl;
-                break;
-            } else if (user == "conf t" || user == "configure terminal") {
+                return;
+            } else if (user == "conf_t" || user == "configure_terminal") {
                 global_conf();
-            } else if (user == "write memory") {
+            } else if (user == "write_memo") {
                 cout << "Settings Saved" << endl;
-            } else if (user == "showip route") {
-                Router1.R_table;
+            } else if (user == "showip_route") {
+                //cout << Router1.R_table[0][0];
+                cout << "showip_route"<<endl;
             } else {
                 cout << "Invalid Command" << endl;
             }
@@ -202,13 +205,12 @@ void Router::privilege_mode() {
             string user;
             cin >> user;
             if (user == "ex" || user == "exit") {
-                cout << "Privilege Mode" << endl;
                 return;
-            } else if (user == "int 1") {
+            } else if (user == "int_1") {
                 Interface1();
-            } else if (user == "int 2") {
+            } else if (user == "int_2") {
                 Interface2();
-            } else if (user == "int 3") {
+            } else if (user == "int_3") {
                 Interface3();
             } else if (user == "iproute 0.0.0.0 0.0.0.0 ipaddress main router") {
                 Router1.R_table;
@@ -233,7 +235,7 @@ void Router::Interface1() {
         while (true) {
             string user;
             cin >> user;
-            if (user == "ip address") {
+            if (user == "ip_address") {
                 cout << "Enter Ip address" << endl;
                 string user1;
                 cin >> user1;
@@ -243,7 +245,7 @@ void Router::Interface1() {
                 cin >> user2;
                 interface1.push_back(user2);
                 // Assigning IP
-            } else if (user == "noshutdown") {
+            } else if (user == "no_shutdown") {
                 cout << "No shutdown" << endl;
             } else if (user == "ex") {
                 return;
@@ -257,7 +259,7 @@ void Router::Interface2() {
         while (true) {
             string user;
             cin >> user;
-            if (user == "ip address") {
+            if (user == "ip_address") {
                 cout << "Enter Ip address" << endl;
                 string user1;
                 cin >> user1;
@@ -267,11 +269,10 @@ void Router::Interface2() {
                 cin >> user2;
                 interface2.push_back(user2);
                 // Assigning IP
-            } else if (user == "noshutdown") {
+            } else if (user == "no_shutdown") {
                 cout << "No shutdown" << endl;
             } else if (user == "ex") {
-                global_conf();
-                break;
+                return;
             } else {
                 cout << "Invalid Command" << endl;
             }
@@ -282,7 +283,7 @@ void Router ::Interface3() {
         while (true) {
             string user;
             cin >> user;
-            if (user == "ip address") {
+            if (user == "ip_address") {
                 cout << "Enter Ip address" << endl;
                 string user1;
                 cin >> user1;
@@ -292,11 +293,10 @@ void Router ::Interface3() {
                 cin >> user2;
                 interface3.push_back(user2);
                 // Assigning IP
-            } else if (user == "noshutdown") {
+            } else if (user == "no_shutdown") {
                 cout << "No shutdown" << endl;
             } else if (user == "ex") {
-                global_conf();
-                break;
+                return;
             } else {
                 cout << "Invalid Command" << endl;
             }
@@ -313,13 +313,20 @@ public:
     int seq_no;
     string ip;
     string mac;
-    string message;
+    vector<string> segments;  // Stores the segments of the message
 
     Server(string n, int p, int s, string ip)
         : name(n), port(p), seq_no(s), ip(ip) {
         EndDevice endDevice(ip, p, "", s);
         mac = endDevice.Generate_mac_address();
-        message = "";
+    }
+
+    string GetMessage() {
+        string message;
+        for (const string& segment : segments) {
+            message += segment;
+        }
+        return message;
     }
 };
 
@@ -329,31 +336,50 @@ Server SMTP("smtp", 25, 3, "30.0.0.6");
 
 vector<Server> s_list = {HTTP, SSH, SMTP};
 
-void messtrf(string message, EndDevice endD, Server server) {
-    server.message = message;
+void messtrf(string message, int e, Server& server) {
+    const int segmentSize = 4;  // Number of characters per segment
+    int messageLength = message.length();
+    int numSegments = (messageLength + segmentSize - 1) / segmentSize;  // Calculate number of segments
+
+    for (int i = 0; i < numSegments; ++i) {
+        int startIndex = i * segmentSize;
+        int endIndex = min(startIndex + segmentSize, messageLength);
+        string segment = message.substr(startIndex, endIndex - startIndex);
+        server.segments.push_back(segment);
+    }
 }
 
 /*-----------------------------------------------UDP--------------------------------------------------------*/
 
-void udp(string n, int p, string ip,EndDevice e, string m) {
-    for (Server i : s_list) {
+void udp(string n, int p, string ip, int e, string m) {
+    for (Server& i : s_list) {
         if (n == i.name) {
-            if (ip == i.ip && p == i.port) {
-                random_device rd;
-                mt19937 gen(rd());
-                uniform_int_distribution<int> dis(0, 10);
-                int x = dis(gen);
-
-                if (x >= 8) {
-                    messtrf("Your message", e, i);
-                    cout << i.message << endl;
+            if (ip == i.ip) 
+            {
+                if(p == i.port){
+                std::srand(static_cast<unsigned>(std::time(nullptr)));
+                int x = rand() % 11;
+                if (x >= 5) {
+                    messtrf(m, e, i);
+                    cout << "Segments received by the server: " << endl;
+                    for (const string& segment : i.segments) {
+                        cout << segment << endl;
+                    }
+                    cout << "Complete message received by the server: " << i.GetMessage() << endl;
                     return;
                 } else {
                     cout << "Packet got dropped because of the unreliability of UDP" << endl;
                     return;
                 }
-            } else {
-                cout << "Port or IP does not match" << endl;
+                }
+                else
+                {
+                    cout<<"Port does not match"<<endl;
+                    return;
+                }
+            } 
+            else {
+                cout << "IP does not match" << endl;
                 return;
             }
         }
@@ -363,16 +389,30 @@ void udp(string n, int p, string ip,EndDevice e, string m) {
 
 /*-----------------------------------------------TCP--------------------------------------------------------*/
 
-void tcp(string n, int p, string ip, EndDevice e, string m) {
-    for (Server server : s_list) {
+void tcp(string n, int p, string ip, int e, string m) {
+    for (Server& server : s_list) {
         if (n == server.name) {
-            if (ip == server.ip && p == server.port) {
+            if (ip == server.ip) 
+            {
+                if(p == server.port){
                 string buffer = m;
                 messtrf(buffer, e, server);
-                cout << server.message << endl;
+                cout << "Segments received by the server: " << endl;
+                for (const string& segment : server.segments) {
+                    cout << segment << endl;
+                }
+                cout << "Complete message received by the server: " << server.GetMessage() << endl;
                 return;
-            } else {
-                cout << "Port or IP does not match." << endl;
+                }
+                else
+                {
+                    cout<<"Port does not match"<<endl;
+                    return;
+                }
+            } 
+            else 
+            {
+                cout << "IP does not match." << endl;
                 return;
             }
         }
@@ -434,7 +474,7 @@ int subnettingBits(string& subnetMask) {
 /*---------------------------------------------PING--------------------------------------------------------*/
 
 void ping(int src, int dest) {
-    if (Router1.flag == 0 /*&& num4 == 7 will be declare later*/) {
+    if (Router1.flag == 0 && case_no == 7) {
         cout << "Timeout Occurred" << endl;
     } else if (get_nid(endDevices[src].ip, endDevices[src].subnet) == get_nid(endDevices[dest].ip, endDevices[src].subnet)) {
         cout << "Searching the MAC address of destination in ARP Cache..." << endl;
@@ -583,7 +623,7 @@ void DHCP(int enddevice) {
 
 /*-----------------------------FLOW CONTROL PROTOCOL: STOP AND WAIT ARQ------------------------------------*/
 
-void stop_and_wait_arq_HUb(int a, int b, vector<string>& c) {
+void stop_and_wait_arq_HUb(int a, int b, string c) {
     int sender = 0;
     int receiver = 0;
     int s = 0;
@@ -692,7 +732,7 @@ void stop_and_wait_arq_HUb(int a, int b, vector<string>& c) {
     }
 }
 
-void stop_and_wait_arq(int a, int b, vector<string>& c) {
+void stop_and_wait_arq(int a, int b, string c) {
     int sender = 0;
     int receiver = 0;
     int s = 0;
@@ -742,7 +782,7 @@ void stop_and_wait_arq(int a, int b, vector<string>& c) {
 
 /*-----------------------------FLOW CONTROL PROTOCOL: SELECTIVE REPEAT------------------------------------*/
 
-void Selective_Repeat_Hub(int a, int b, vector<int>& c) {
+void Selective_Repeat_Hub(int a, int b, string c) {
     cout << "Enter the reserved bit size for Seq no" << endl;
     int m;
     cin >> m;
@@ -887,7 +927,7 @@ void Selective_Repeat_Hub(int a, int b, vector<int>& c) {
     }
 }
 
-void Selective_Repeat(int a, int b, vector<int>& c) {
+void Selective_Repeat(int a, int b, string c) {
     cout << "Enter the reserved bit size for Seq no" << endl;
     int m;
     cin >> m;
@@ -912,7 +952,9 @@ void Selective_Repeat(int a, int b, vector<int>& c) {
                         sf = sn;
                         marker = marker + 1;
                     }
-                } else {
+                } 
+                else 
+                {
                     array[sn] = 1;
 
                     int c1 = count(Switch1.maclist1.begin(), Switch1.maclist1.end(), endDevices[b].mac);
@@ -988,7 +1030,7 @@ void token_passing(int token, int num1) {
     } else if (t < s) {
         cout << "End Device " << t << " Has access" << endl;
         cout << "------Passing the Token" << endl;
-        for (int i : end_Devices) {
+        for (int i = 0; i < endDevices.size(); i++ ) {
             cout << "End Device " << i + t << " Has access now" << endl;
 
             if (s == i + t) {
@@ -1002,7 +1044,7 @@ void token_passing(int token, int num1) {
     } else {
         cout << "End Device " << t << " Has access" << endl;
         cout << "------Passing the Token" << endl;
-        for (int i : end_Devices) {
+        for (int i = 0; i <  endDevices.size(); i++) {
             end_Devices[i] = t;
             cout << "End Device " << t - i << " Has access now" << endl;
 
@@ -1137,6 +1179,607 @@ void establishHubTopology(EndDevice& e1, Hub & Hub1, EndDevice& e2, EndDevice& e
     
 }
 
+void addLearning()
+{
+   if (Hub1.Hub_vacant() == 0 && Switch1.Switch_vacant() == 0 && Hub2.Hub_vacant() == 0) {
+        cout << "Connection made between --Hub1------Switch------Hub2--" << endl;
+        Switch1.port1 = 2;
+        Hub1.ports[5] = 6;
+        Hub2.ports[5] = 4;
+        if (End_Device_Vacant() == 0 && Hub1.Hub_vacant() == 0) {
+            cout << "......................HUB 1  CONNECTING......................." << endl;
+            cout << "Connection made between Hub1 and End Device 1" << endl;
+            e1.port = 1;
+            Hub1.ports[0] = 9;
+            if (Hub1.ports[1] == 0 && Hub1.ports[2] == 0 && Hub1.ports[3] == 0 && Hub1.ports[4] == 0) {
+                cout << "Connection made between Hub1 and End Device 2" << endl;
+                cout << "Connection made between Hub1 and End Device 3" << endl;
+                cout << "Connection made between Hub1 and End Device 4" << endl;
+                cout << "Connection made between Hub1 and End Device 5" << endl;
+                e2.port = 7;
+                e3.port = 2;
+                e4.port = 8;
+                e5.port = 1;
+                Hub1.ports[1] = 5;
+                Hub1.ports[2] = 8;
+                Hub1.ports[3] = 52;
+                Hub1.ports[4] = 80;
+            } else {
+                cout << "No Port vacant in HUB" << endl;
+            }
+        } else {
+            cout << "---No end device vacant---" << endl;
+        }
+
+        if (End_Device_Vacant() == 0 || Hub2.Hub_vacant() == 0) {
+            cout << "......................HUB 2  CONNECTING......................." << endl;
+            cout << "Connection made between Hub2 and End Device 6" << endl;
+            e6.port = 1;
+            Hub2.ports[0] = 9;
+            if (Hub2.ports[1] == 0 && Hub2.ports[2] == 0 && Hub2.ports[3] == 0 && Hub2.ports[4] == 0) {
+                cout << "Connection made between Hub2 and End Device 7" << endl;
+                cout << "Connection made between Hub2 and End Device 8" << endl;
+                cout << "Connection made between Hub2 and End Device 9" << endl;
+                cout << "Connection made between Hub2 and End Device 10" << endl;
+                e7.port = 71;
+                e8.port = 22;
+                e9.port = 71;
+                e10.port = 22;
+                Hub2.ports[1] = 50;
+                Hub2.ports[2] = 801;
+                Hub2.ports[3] = 501;
+                Hub2.ports[4] = 800;
+            } else {
+                cout << "No Port vacant in HUB" << endl;
+            }
+        } else {
+            cout << "---No end device vacant---" << endl;
+        }
+
+        std::cout << "Enter the message: ";
+        std::string num3;
+        cin>>num3;
+        std::cout << "Message: " << num3 << std::endl;
+        e1.data = num3;
+
+        std::cout << "Sender Device is 1" << std::endl;
+        std::cout << "Receiver Device is 2" << std::endl;
+        std::cout << "Searching for MAC address of End Device 2" << std::endl;
+        std::cout << "Mac Address of End Device 2 is = " << e2.mac << std::endl;
+
+        for (int i = 0; i < 5; i++) {
+            if (Switch1.maclist1[i] == e2.mac) {
+                std::cout << "MAC address found in MAC table within the same port" << std::endl;
+                e2.data = e1.data;
+                std::cout << "Message sent to End Device 2" << std::endl;
+                e3.data = e1.data;
+                std::cout << "Message sent to End Device 3" << std::endl;
+                e4.data = e1.data;
+                std::cout << "Message sent to End Device 4" << std::endl;
+                e5.data = e1.data;
+                std::cout << "Message sent to End Device 5" << std::endl;
+                std::cout << "---ACK RECEIVED from End Device 2---" << std::endl;
+                break;
+            }
+            if (i == 4) {
+                std::cout << "Mac Address of End Device 2 not found in the MAC table" << std::endl;
+                e2.data = e1.data;
+                std::cout << "Message sent to End Device 2" << std::endl;
+                e3.data = e1.data;
+                std::cout << "Message sent to End Device 3" << std::endl;
+                e4.data = e1.data;
+                std::cout << "Message sent to End Device 4" << std::endl;
+                e5.data = e1.data;
+                std::cout << "Message sent to End Device 5" << std::endl;
+                e6.data = e1.data;
+                std::cout << "Message sent to End Device 6" << std::endl;
+                e7.data = e1.data;
+                std::cout << "Message sent to End Device 7" << std::endl;
+                e8.data = e1.data;
+                std::cout << "Message sent to End Device 8" << std::endl;
+                e9.data = e1.data;
+                std::cout << "Message sent to End Device 9" << std::endl;
+                e10.data = e1.data;
+                std::cout << "Message sent to End Device 10" << std::endl;
+                std::cout << "---ACK RECEIVED from End Device 2---" << std::endl;
+            }
+        }
+
+        Switch1.maclist1[0] = e1.mac;
+        Switch1.maclist1[1] = e2.mac;
+        Switch1.maclist1[2] = e3.mac;
+        //Switch1.maclist1[3] = e4.mac;
+        Switch1.maclist1[4] = e5.mac;
+        Switch1.maclist2[0] = e6.mac;
+        //Switch1.maclist2[1] = e7.mac;
+        Switch1.maclist2[2] = e8.mac;
+        //Switch1.maclist2[3] = e9.mac;
+        Switch1.maclist2[4] = e10.mac;
+
+        std::cout << "Updated MAC Table in Switch 1" << std::endl;
+        std::cout << "MAC Address List 1:" << std::endl;
+        for (int i = 0; i < 5; i++) {
+            std::cout << Switch1.maclist1[i] << std::endl;
+        }
+        std::cout << "MAC Address List 2:" << std::endl;
+        for (int i = 0; i < 5; i++) {
+            std::cout << Switch1.maclist2[i] << std::endl;
+        }
+    } 
+    return ;
+}
+
+void accessFlow()
+{
+    if (Hub1.Hub_vacant() == 0 && Switch1.Switch_vacant() == 0 && Hub2.Hub_vacant() == 0) {
+        std::cout << "Connection made between --Hub1------Switch------Hub2--" << std::endl;
+        Switch1.port1 = 2;
+        Hub1.ports[5] = 6;
+        Hub2.ports[5] = 4;
+    }
+    
+    if (End_Device_Vacant() == 0 && Hub1.Hub_vacant() == 0) {
+        std::cout << "......................HUB 1  CONNECTING......................." << std::endl;
+        std::cout << "Connection made between Hub1 and End Device 1" << std::endl;
+        e1.port = 1;
+        Hub1.ports[0] = 9;
+        
+        if (Hub1.ports[1] == 0 && Hub1.ports[2] == 0 && Hub1.ports[3] == 0 && Hub1.ports[4] == 0) {
+            std::cout << "Connection made between Hub1 and End Device 2" << std::endl;
+            std::cout << "Connection made between Hub1 and End Device 3" << std::endl;
+            std::cout << "Connection made between Hub1 and End Device 4" << std::endl;
+            std::cout << "Connection made between Hub1 and End Device 5" << std::endl;
+            e2.port = 7;
+            e3.port = 2;
+            e4.port = 8;
+            e5.port = 1;
+            Hub1.ports[1] = 5;
+            Hub1.ports[2] = 8;
+            Hub1.ports[3] = 52;
+            Hub1.ports[4] = 80;
+        } else {
+            std::cout << "No Port vacant in HUB" << std::endl;
+        }
+    } else {
+        std::cout << "---No end device vacant---" << std::endl;
+    }
+    
+    if (End_Device_Vacant() == 0 || Hub2.Hub_vacant() == 0) {
+        std::cout << "......................HUB 2  CONNECTING......................." << std::endl;
+        std::cout << "Connection made between Hub2 and End Device 6" << std::endl;
+        e6.port = 1;
+        Hub2.ports[0] = 9;
+        
+        if (Hub2.ports[1] == 0 && Hub2.ports[2] == 0 && Hub2.ports[3] == 0 && Hub2.ports[4] == 0) {
+            std::cout << "Connection made between Hub2 and End Device 7" << std::endl;
+            std::cout << "Connection made between Hub2 and End Device 8" << std::endl;
+            std::cout << "Connection made between Hub2 and End Device 9" << std::endl;
+            std::cout << "Connection made between Hub2 and End Device 10" << std::endl;
+            e7.port = 71;
+            e8.port = 22;
+            e9.port = 71;
+            e10.port = 22;
+            Hub2.ports[1] = 50;
+            Hub2.ports[2] = 801;
+            Hub2.ports[3] = 501;
+            Hub2.ports[4] = 800;
+        } else {
+            std::cout << "No Port vacant in HUB" << std::endl;
+        }
+    } else {
+        std::cout << "---No end Device vacant---" << std::endl;
+    }
+    
+    std::cout << "Enter token value: ";
+    int token;
+    std::cin >> token;
+    
+    std::cout << "Enter Sender Device no: ";
+    int num1;
+    std::cin >> num1;
+    
+    token_passing(token, num1);
+    
+    std::cout << "Enter receiver Device no: ";
+    int num2;
+    std::cin >> num2;
+    
+    std::cout << "Enter message: ";
+    std::string num3;
+    std::cin.ignore(); // Ignore the newline character from previous input
+    std::getline(std::cin, num3);
+    
+    std::cout << "Choose the flow control protocol" << std::endl;
+    std::cout << "1. STOP AND WAIT ARQ" << std::endl;
+    std::cout << "2. SELECTIVE REPEAT" << std::endl;
+    int num5;
+    std::cin >> num5;
+    
+    if (num5 == 1) {
+        stop_and_wait_arq_HUb(num1, num2, num3);
+    } else {
+        Selective_Repeat_Hub(num1, num2, num3);
+    }
+    
+    return ;
+}
+
+void accessFlowSwitch()
+{
+    if (Switch1.Switch_vacant() == 0 && End_Device_Vacant() == 0) {
+    std::cout << "-----------CONNECTING TO SWITCH------------" << std::endl;
+    for (int i = 1; i <= 5; i++) {
+        std::cout << "End Device " << i << " Connected to Switch" << std::endl;
+    }
+
+    std::cout << "Enter token value: ";
+    int token;
+    std::cin >> token;
+
+    std::cout << "Enter Sender Device no: ";
+    int num1;
+    std::cin >> num1;
+
+    token_passing(token, num1);
+
+    std::cout << "Enter receiver Device no: ";
+    int num2;
+    std::cin >> num2;
+
+    std::cout << "Enter message: ";
+    std::string num3;
+    std::cin.ignore(); // Ignore the newline character from previous input
+    std::getline(std::cin, num3);
+
+    if (num2 != num1) {
+        std::cout << "Choose the flow control protocol" << std::endl;
+        std::cout << "1. STOP AND WAIT ARQ" << std::endl;
+        std::cout << "2. SELECTIVE REPEAT" << std::endl;
+        int num5;
+        std::cin >> num5;
+
+        if (num5 == 1) {
+            stop_and_wait_arq(num1, num2, num3);
+        } else {
+            Selective_Repeat(num1, num2, num3);
+        }
+    } else {
+        std::cout << "Enter valid number. No communication possible!" << std::endl;
+    }
+}
+    return ;
+}
+
+void routerStart()
+{
+    if (Switch1.Switch_vacant() == 0 && Switch2.Switch_vacant() == 0) {
+        std::cout << "Connection made between --Switch1------Router------Switch2--" << std::endl;
+        Switch1.port1 = 1;
+        Switch2.port1 = 1;
+    }
+
+    if (End_Device_Vacant() == 0 || Switch1.Switch_vacant() == 0) {
+        std::cout << "......................SWITCH 1  CONNECTING......................." << std::endl;
+        std::cout << "Connection made between Switch1 and End Device 1" << std::endl;
+        e1.port = 1;
+        Switch1.port1 = 9;
+
+        if (Hub1.ports[1] == 0 && Hub1.ports[2] == 0 && Hub1.ports[3] == 0 && Hub1.ports[4] == 0) {
+            std::cout << "Connection made between Switch1 and End Device 2" << std::endl;
+            e2.port = 7;
+        } else {
+            std::cout << "No Port vacant in SWITCH" << std::endl;
+        }
+    } else {
+        std::cout << "---No end device vacant---" << std::endl;
+    }
+
+    if (End_Device_Vacant() != 0 || Switch2.Switch_vacant() == 0) {
+        std::cout << "......................SWITCH 2  CONNECTING......................." << std::endl;
+        std::cout << "Connection made between SWITCH 2 and End Device 3" << std::endl;
+        e3.port = 1;
+        Switch2.port1 = 9;
+
+        if (Hub2.ports[1] == 0 && Hub2.ports[2] == 0 && Hub2.ports[3] == 0 && Hub2.ports[4] == 0) {
+            std::cout << "Connection made between SWITCH 2 and End Device 4" << std::endl;
+            e4.port = 7;
+        } else {
+            std::cout << "No Port vacant in SWITCH" << std::endl;
+        }
+    } else {
+        std::cout << "error" << std::endl;
+    }
+
+    for (int i = 0; i < 4; i++) {
+        std::cout << "Enter IP Address of End Device " << i + 1 << ": ";
+        std::string user;
+        std::cin >> user;
+        endDevices[i + 1].ip = user;
+
+        std::cout << "Enter Network Prefix Length of device " << i + 1 << ": ";
+        int prefixLength;
+        std::cin >> prefixLength;
+        endDevices[i + 1].subnet = prefixLength;
+
+        std::cout << "Enter Default gateway of device " << i + 1 << ": ";
+        std::cin >> user;
+        endDevices[i + 1].gateway = user;
+    }
+
+    if (get_nid(endDevices[1].ip, endDevices[1].subnet) != get_nid(endDevices[2].ip, endDevices[2].subnet) ||
+        get_nid(endDevices[3].ip, endDevices[3].subnet) != get_nid(endDevices[4].ip, endDevices[4].subnet)) {
+        std::cout << "Enter valid IP addresses" << std::endl;
+    }
+
+    Router1.user_executive_mode();
+    ping(1, 4);
+    return;
+}
+
+void rouRIP(){
+     if (Switch1.Switch_vacant() == 0 && Switch2.Switch_vacant() == 0) {
+        cout << "Connection made between --Switch1------Router1----Router2------Switch2-- " << endl;
+        cout << "Connection made between ---Router1----Router3------Router2----- " << endl;
+        cout << "   E1                                E3   \n"
+                "    |                                |    \n"
+                "   S1---------R1 - - - - -R2---------S2   \n"
+                "    |           -        -           |    \n"
+                "   E2             -    -             E4   \n"
+                "                    R3                    \n" << endl;
+
+        Switch1.port1 = 1;
+        Switch2.port1 = 1;
+    }
+
+    if (End_Device_Vacant() == 0 || Switch1.Switch_vacant() == 0) {
+        cout << "......................SWITCH 1  CONNECTING......................." << endl;
+
+        cout << "Connection made between Switch1 and End Device 1" << endl;
+        e1.port = 1;
+        Switch2.port1 = 9;
+
+        if (Hub1.ports[1]== 0 && Hub1.ports[2] == 0 && Hub1.ports[3] == 0 && Hub1.ports[4] == 0) {
+            cout << "Connection made between Switch1 and End Device 2" << endl;
+            e2.port = 7;
+        } else {
+            cout << "No Port vacant in SWITCH" << endl;
+        }
+    } else {
+        cout << "---No end device vacant---" << endl;
+    }
+
+    if (End_Device_Vacant() != 0 || Switch2.Switch_vacant() == 0) {
+        cout << "......................SWITCH 2  CONNECTING......................." << endl;
+        cout << "Connection made between SWITCH 2 and End Device 3" << endl;
+        e3.port = 1;
+        Switch2.port1 = 9;
+
+        if (Hub2.ports[1] == 0 && Hub2.ports[2] == 0 && Hub2.ports[3] == 0 && Hub2.ports[4] == 0) {
+            cout << "Connection made between SWITCH 2 and End Device 4" << endl;
+            e4.port = 7;
+        } else {
+            cout << "No Port vacant in SWITCH" << endl;
+        }
+    } else {
+        cout << "error" << endl;
+    }
+
+    for (int i = 0; i < 4; i++) {
+        cout << "Enter IP Address of End Device " << i + 1 << ": ";
+        string user;
+        cin >> user;
+        endDevices[i + 1].ip = user;
+
+        cout << "Enter Network Prefix Length of device " << i + 1 << ": ";
+        int prefix;
+        cin >> prefix;
+        endDevices[i + 1].subnet = prefix;
+
+        cout << "Enter Default gateway of device " << i + 1 << ": ";
+        cin >> user;
+        endDevices[i + 1].gateway = user;
+    }
+
+    if (get_nid(endDevices[1].ip, endDevices[1].subnet) != get_nid(endDevices[2].ip, endDevices[2].subnet) ||
+        get_nid(endDevices[3].ip, endDevices[3].subnet) != get_nid(endDevices[4].ip, endDevices[4].subnet)) {
+        cout << "Enter valid IP addresses" << endl;
+    }
+
+    Router1.R_table.clear();
+    vector<string> list1 = {"10.0.0.0", "24", "10.0.0.3", "", "1"};
+    Router1.R_table.push_back(list1);
+    vector<string> list2 = {"20.0.0.0", "24", "20.0.0.2", "", "5"};
+    Router1.R_table.push_back(list2);
+    vector<string> list3 = {"30.0.0.0", "23", "30.0.0.1", "", "1"};
+    Router1.R_table.push_back(list3);
+    vector<string> list4 = {"40.0.0.0", "22", "40.0.0.1", "", "1"};
+    Router1.R_table.push_back(list4);
+    vector<string> list5 = {"50.0.0.0", "22", "30.0.0.1", "", "5"};
+    Router1.R_table.push_back(list5);
+
+    Router2.R_table.clear();
+    vector<string> list6 = {"10.0.0.0", "24", "30.0.0.2", "", "5"};
+    Router2.R_table.push_back(list6);
+    vector<string> list7 = {"20.0.0.0", "24", "20.0.0.3", "", "1"};
+    Router2.R_table.push_back(list7);
+    vector<string> list8 = {"30.0.0.0", "23", "30.0.0.2", "", "1"};
+    Router2.R_table.push_back(list8);
+    vector<string> list9 = {"50.0.0.0", "22", "50.0.0.1", "", "1"};
+    Router2.R_table.push_back(list9);
+    vector<string> list12 = {"40.0.0.0", "22", "40.0.0.2", "", "5"};
+    Router2.R_table.push_back(list12);
+
+    Router3.R_table.clear();
+    vector<string> list10 = {"10.0.0.0", "24", "10.0.0.2", "", "5"};
+    Router3.R_table.push_back(list10);
+    vector<string> list11 = {"20.0.0.0", "24", "20.0.0.3", "", "1"};
+    Router3.R_table.push_back(list11);
+    vector<string> list13 = {"30.0.0.0", "23", "30.0.0.2", "", "1"};
+    Router3.R_table.push_back(list13);
+    vector<string> list14 = {"40.0.0.0", "22", "40.0.0.2", "", "1"};
+    Router3.R_table.push_back(list14);
+    vector<string> list15 = {"50.0.0.0", "22", "50.0.0.1", "", "5"};
+    Router3.R_table.push_back(list15);
+
+    Router1.user_executive_mode();
+    Router2.user_executive_mode();
+    Router3.user_executive_mode();
+    // int e1port = find_port(Router1.R_table, endDevices[1].gateway);
+    // int e2port = find_port(Router1.R_table, endDevices[2].gateway);
+    // int e3port = find_port(Router2.R_table, endDevices[3].gateway);
+    // int e4port = find_port(Router2.R_table, endDevices[4].gateway);
+
+    // Hub1.ports[0] = e1port;
+    // Hub1.ports[5] = e2port;
+    // Hub2.ports[0] = e3port;
+    // Hub2.ports[5] = e4port;
+
+    // cout << "IP address of End Device 1: " << endDevices[1].ip << endl;
+    // cout << "NID of End Device 1: " << get_nid(endDevices[1].ip, endDevices[1].subnet) << endl;
+    // cout << "Default Gateway of End Device 1: " << endDevices[1].gateway << endl;
+    // cout << "Connected Port on Router 1: " << e1port << endl;
+    // cout << endl;
+
+    // cout << "IP address of End Device 2: " << endDevices[2].ip << endl;
+    // cout << "NID of End Device 2: " << get_nid(endDevices[2].ip, endDevices[2].subnet) << endl;
+    // cout << "Default Gateway of End Device 2: " << endDevices[2].gateway << endl;
+    // cout << "Connected Port on Router 1: " << e2port << endl;
+    // cout << endl;
+
+    // cout << "IP address of End Device 3: " << endDevices[3].ip << endl;
+    // cout << "NID of End Device 3: " << get_nid(endDevices[3].ip, endDevices[3].subnet) << endl;
+    // cout << "Default Gateway of End Device 3: " << endDevices[3].gateway << endl;
+    // cout << "Connected Port on Router 2: " << e3port << endl;
+    // cout << endl;
+
+    // cout << "IP address of End Device 4: " << endDevices[4].ip << endl;
+    // cout << "NID of End Device 4: " << get_nid(endDevices[4].ip, endDevices[4].subnet) << endl;
+    // cout << "Default Gateway of End Device 4: " << endDevices[4].gateway << endl;
+    // cout << "Connected Port on Router 2: " << e4port << endl;
+    // cout << endl;
+    ping(1,4);
+    RIP();
+    return;
+}
+
+void transportLayer() {     
+        cout << "Enter the respective number for the transport layer protocols" << endl;
+        cout << "1. UDP" << endl;
+        cout << "2. TCP" << endl;
+        int x;
+        cin >> x;
+
+        if (x == 1) {
+            cout << "Enter the Name of the Server: ";
+            string n;
+            cin >> n;
+
+            cout << "Enter the port no of the server you want to communicate: ";
+            int p;
+            cin >> p;
+
+            cout << "Enter the IP address of the server: ";
+            string i;
+            cin >> i;
+
+            cout << "Enter the Device from which you want to communicate: ";
+            int e;
+            cin >> e;
+
+            cout << "Enter the Message: ";
+            string m;
+            cin.ignore(); // Ignore newline character left in the buffer
+            getline(cin, m);
+
+            udp(n, p, i, e, m);
+        } else if(x==2) {
+            cout << "Enter the Name of the Server: ";
+            string n;
+            cin >> n;
+
+            cout << "Enter the port no of the server you want to communicate: ";
+            int p;
+            cin >> p;
+
+            cout << "Enter the IP address of the server: ";
+            string i;
+            cin >> i;
+
+            cout << "Enter the Device from which you want to communicate: ";
+            int e;
+            cin >> e;
+
+            cout << "Enter the Message: ";
+            string m;
+            cin.ignore(); // Ignore newline character left in the buffer
+            getline(cin, m);
+
+            tcp(n, p, i, e, m);
+        }
+        else
+        {
+            cout<<"Enter a valid option"<<endl;
+        }
+    return;
+}
+
+void configureRouter() {
+    cout << "Configuring the router" << endl;
+    Router1.user_executive_mode();
+}
+
+void HTTP_() {
+    // Implement HTTP logic here
+    cout << "Performing HTTP communication" << endl;
+    // Rest of the HTTP code
+}
+
+void applicationLayer() {
+    cout << "Press the following number for the protocols" << endl;
+    cout << "1. DHCP" << endl;
+    cout << "2. HTTP" << endl;
+
+    int x;
+    cin >> x;
+
+    if (x == 1) {
+        if (End_Device_Vacant() == 0) {
+            cout << "-----------CONNECTING TO ROUTER------------" << endl;
+            for (int i = 1; i < 4; i++) {
+                cout << "End Device " << i << " Connected to Router on Interface 1" << endl;
+            }
+            for (int i = 4; i < 7; i++) {
+                cout << "End Device " << i << " Connected to Router on Interface 2" << endl;
+            }
+
+            cout << "            E3                           E4           \n"
+                 << "                -                    -                \n"
+                 << "      E1- - - - - - S1----R1-----S2 - - - - - -E5     \n"
+                 << "                -                    -                \n"
+                 << "            E2                           E6           \n"
+                 << "                                                      \n"
+                 << endl;
+
+            configureRouter();
+
+            for (int i = 1; i < 7; i++) {
+                cout << "For End Device " << i << " ";
+                DHCP(i);
+            }
+        } else {
+            cout << "Enter a valid number. No communication possible!" << endl;
+        }
+    } else {
+        HTTP_();
+    }
+    return;
+}
+
+void NetworkLayer()
+{
+    
+    return;
+}
 
 int main() {
     cout << "Following Simulations can be carried out. Enter the respective number of the simulation:" << endl;
@@ -1145,6 +1788,8 @@ int main() {
     cout << "3. Simulation through Switch (Address Learning)" << endl;
     cout << "4. Complete Simulation - Implementing Access and Flow Control Protocols" << endl;
     cout << "5. Switch and 5 End Devices" << endl;
+    cout << "6. TL" << endl;
+    cout << "7. AL" << endl;
     int num;
     cin >> num;
     switch (num) {
@@ -1153,6 +1798,21 @@ int main() {
             break;
         case 2:
             establishHubTopology(e1, Hub1, e2, e3, e4, e5);
+            break;
+        case 3:
+            addLearning();
+            break;
+        case 4:
+            accessFlow();
+            break;
+        case 5:
+            accessFlowSwitch();
+            break;
+        case 6:
+            transportLayer();
+            break;
+        case 7:
+            applicationLayer();
             break;
         default:
             cout << "Invalid simulation number" << endl;
