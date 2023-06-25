@@ -6,6 +6,7 @@
 #include <vector>
 #include <random>
 #include <ctime>
+#include "appLayer.h"
 
 using namespace std;
 
@@ -354,7 +355,7 @@ void messtrf(string message, int e, Server& server) {
 void udp(string n, int p, string ip, int e, string m) {
     for (Server& i : s_list) {
         if (n == i.name) {
-            if (ip == i.ip) 
+            if (ip == i.ip)
             {
                 if(p == i.port){
                 std::srand(static_cast<unsigned>(std::time(nullptr)));
@@ -377,7 +378,7 @@ void udp(string n, int p, string ip, int e, string m) {
                     cout<<"Port does not match"<<endl;
                     return;
                 }
-            } 
+            }
             else {
                 cout << "IP does not match" << endl;
                 return;
@@ -392,7 +393,7 @@ void udp(string n, int p, string ip, int e, string m) {
 void tcp(string n, int p, string ip, int e, string m) {
     for (Server& server : s_list) {
         if (n == server.name) {
-            if (ip == server.ip) 
+            if (ip == server.ip)
             {
                 if(p == server.port){
                 string buffer = m;
@@ -409,8 +410,8 @@ void tcp(string n, int p, string ip, int e, string m) {
                     cout<<"Port does not match"<<endl;
                     return;
                 }
-            } 
-            else 
+            }
+            else
             {
                 cout << "IP does not match." << endl;
                 return;
@@ -952,8 +953,8 @@ void Selective_Repeat(int a, int b, string c) {
                         sf = sn;
                         marker = marker + 1;
                     }
-                } 
-                else 
+                }
+                else
                 {
                     array[sn] = 1;
 
@@ -1115,7 +1116,7 @@ void establishDedicatedLink(EndDevice& e1, EndDevice& e2) {
     }
 }
 
-void establishHubTopology(EndDevice& e1, Hub & Hub1, EndDevice& e2, EndDevice& e3, EndDevice& e4, EndDevice& e5) 
+void establishHubTopology(EndDevice& e1, Hub & Hub1, EndDevice& e2, EndDevice& e3, EndDevice& e4, EndDevice& e5)
 {
     cout<<"Device No. should be between 1 and 5"<<endl;
     cout << "Enter Sender Device number: ";
@@ -1166,7 +1167,7 @@ void establishHubTopology(EndDevice& e1, Hub & Hub1, EndDevice& e2, EndDevice& e
                cout << "Acknowledgement (ACK) received from End Device " << receiverDevice << endl;
             else
                 cout<<"Ack lost, no connection"<<endl;
- 
+
     }
     else {
         cout << "No vacant port available in the HUB." << endl;
@@ -1175,8 +1176,8 @@ void establishHubTopology(EndDevice& e1, Hub & Hub1, EndDevice& e2, EndDevice& e
     else
     {
         cout<<"Enter the correct Device No."<<endl;
-    } 
-    
+    }
+
 }
 
 void addLearning()
@@ -1305,7 +1306,7 @@ void addLearning()
         for (int i = 0; i < 5; i++) {
             std::cout << Switch1.maclist2[i] << std::endl;
         }
-    } 
+    }
     return ;
 }
 
@@ -1317,13 +1318,13 @@ void accessFlow()
         Hub1.ports[5] = 6;
         Hub2.ports[5] = 4;
     }
-    
+
     if (End_Device_Vacant() == 0 && Hub1.Hub_vacant() == 0) {
         std::cout << "......................HUB 1  CONNECTING......................." << std::endl;
         std::cout << "Connection made between Hub1 and End Device 1" << std::endl;
         e1.port = 1;
         Hub1.ports[0] = 9;
-        
+
         if (Hub1.ports[1] == 0 && Hub1.ports[2] == 0 && Hub1.ports[3] == 0 && Hub1.ports[4] == 0) {
             std::cout << "Connection made between Hub1 and End Device 2" << std::endl;
             std::cout << "Connection made between Hub1 and End Device 3" << std::endl;
@@ -1343,13 +1344,13 @@ void accessFlow()
     } else {
         std::cout << "---No end device vacant---" << std::endl;
     }
-    
+
     if (End_Device_Vacant() == 0 || Hub2.Hub_vacant() == 0) {
         std::cout << "......................HUB 2  CONNECTING......................." << std::endl;
         std::cout << "Connection made between Hub2 and End Device 6" << std::endl;
         e6.port = 1;
         Hub2.ports[0] = 9;
-        
+
         if (Hub2.ports[1] == 0 && Hub2.ports[2] == 0 && Hub2.ports[3] == 0 && Hub2.ports[4] == 0) {
             std::cout << "Connection made between Hub2 and End Device 7" << std::endl;
             std::cout << "Connection made between Hub2 and End Device 8" << std::endl;
@@ -1369,38 +1370,38 @@ void accessFlow()
     } else {
         std::cout << "---No end Device vacant---" << std::endl;
     }
-    
+
     std::cout << "Enter token value: ";
     int token;
     std::cin >> token;
-    
+
     std::cout << "Enter Sender Device no: ";
     int num1;
     std::cin >> num1;
-    
+
     token_passing(token, num1);
-    
+
     std::cout << "Enter receiver Device no: ";
     int num2;
     std::cin >> num2;
-    
+
     std::cout << "Enter message: ";
     std::string num3;
     std::cin.ignore(); // Ignore the newline character from previous input
     std::getline(std::cin, num3);
-    
+
     std::cout << "Choose the flow control protocol" << std::endl;
     std::cout << "1. STOP AND WAIT ARQ" << std::endl;
     std::cout << "2. SELECTIVE REPEAT" << std::endl;
     int num5;
     std::cin >> num5;
-    
+
     if (num5 == 1) {
         stop_and_wait_arq_HUb(num1, num2, num3);
     } else {
         Selective_Repeat_Hub(num1, num2, num3);
     }
-    
+
     return ;
 }
 
@@ -1662,7 +1663,7 @@ void rouRIP(){
     return;
 }
 
-void transportLayer() {     
+void transportLayer() {
         cout << "Enter the respective number for the transport layer protocols" << endl;
         cout << "1. UDP" << endl;
         cout << "2. TCP" << endl;
@@ -1728,16 +1729,11 @@ void configureRouter() {
     Router1.user_executive_mode();
 }
 
-void HTTP_() {
-    // Implement HTTP logic here
-    cout << "Performing HTTP communication" << endl;
-    // Rest of the HTTP code
-}
 
 void applicationLayer() {
     cout << "Press the following number for the protocols" << endl;
     cout << "1. DHCP" << endl;
-    cout << "2. HTTP" << endl;
+    cout << "2. HTTP, FTP, SSH and DNS "<< endl;
 
     int x;
     cin >> x;
@@ -1770,16 +1766,11 @@ void applicationLayer() {
             cout << "Enter a valid number. No communication possible!" << endl;
         }
     } else {
-        HTTP_();
+        appLayer();
     }
     return;
 }
 
-void NetworkLayer()
-{
-    
-    return;
-}
 
 int main() {
     cout << "Following Simulations can be carried out. Enter the respective number of the simulation:" << endl;
