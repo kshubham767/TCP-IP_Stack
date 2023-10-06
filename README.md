@@ -2,12 +2,6 @@
 
 This repository contains the code and report for the semester project submission 1 of the Computer Networks Lab (ITL355) course, Spring 2023.
 
-## Group Members
-
-- Shubham Kumar (2020BITE089)
-- Ayush Kumar Dubey (2020BITE087)
-- Astitva Mishra (2020BITE016)
-
 ## Network Simulator
 
 We have developed a network simulator that includes all the layers of a network: Physical Layer, Data Link Layer, Network Layer, Transport Layer, and Application Layer. The code for the simulator is written in C++ language.
